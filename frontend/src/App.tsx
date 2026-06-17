@@ -10,8 +10,8 @@ import MyReturns from './pages/MyReturns';
 import RepairManagement from './pages/RepairManagement';
 import InventoryManagement from './pages/InventoryManagement';
 import InventoryDetail from './pages/InventoryDetail';
-import { auth } from './services/auth';
-import type { User } from './services/auth';
+import { getUser, isAuthenticated } from './utils/auth';
+import type { User } from './types';
 import { useEffect, useState } from 'react';
 
 interface ProtectedRouteProps {
@@ -24,7 +24,7 @@ function ProtectedRoute({ children, requireRole }: ProtectedRouteProps) {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const currentUser = auth.getUser();
+    const currentUser = getUser();
     setUser(currentUser);
     setChecking(false);
   }, []);
@@ -46,13 +46,17 @@ function ProtectedRoute({ children, requireRole }: ProtectedRouteProps) {
 
 function App() {
   const [isAuth, setIsAuth] = useState(false);
+  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
-    setIsAuth(auth.isAuthenticated());
+    setIsAuth(isAuthenticated());
+    const handleStorage = () => forceUpdate((n) => n + 1);
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   const defaultRedirect = () => {
-    if (isAuth) {
+    if (isAuthenticated()) {
       return <Navigate to="/dashboard" replace />;
     }
     return <Navigate to="/login" replace />;

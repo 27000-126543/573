@@ -10,7 +10,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
   let sql = `
     SELECT it.*, u.name as creator_name,
            (SELECT COUNT(*) FROM inventory_details WHERE task_id = it.id) as total_count,
-           (SELECT COUNT(*) FROM inventory_details WHERE task_id = it.id AND status = 'checked') as checked_count
+           (SELECT COUNT(*) FROM inventory_details WHERE task_id = it.id AND status != 'pending') as checked_count
     FROM inventory_tasks it
     LEFT JOIN users u ON it.creator_id = u.id
     WHERE 1=1
@@ -30,7 +30,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
     params.push(quarter);
   }
 
-  const countSql = sql.replace('SELECT it.*, u.name as creator_name, (SELECT COUNT(*) FROM inventory_details WHERE task_id = it.id) as total_count, (SELECT COUNT(*) FROM inventory_details WHERE task_id = it.id AND status = \'checked\') as checked_count', 'SELECT COUNT(*) as count');
+  const countSql = sql.replace(/[\s\S]*\bFROM\s/i, 'SELECT COUNT(*) as count FROM ');
   const total = (db.prepare(countSql).get(...params) as { count: number }).count;
 
   const offset = (Number(page) - 1) * Number(pageSize);
@@ -51,7 +51,14 @@ router.get('/:taskId/details', authenticate, (req: AuthRequest, res: Response): 
   const { taskId } = req.params;
   const { status, page = 1, pageSize = 20 } = req.query;
 
-  const task = db.prepare('SELECT * FROM inventory_tasks WHERE id = ?').get(taskId);
+  const task = db.prepare(`
+    SELECT it.*, u.name as creator_name,
+           (SELECT COUNT(*) FROM inventory_details WHERE task_id = it.id) as total_count,
+           (SELECT COUNT(*) FROM inventory_details WHERE task_id = it.id AND status != 'pending') as checked_count
+    FROM inventory_tasks it
+    LEFT JOIN users u ON it.creator_id = u.id
+    WHERE it.id = ?
+  `).get(taskId);
   if (!task) {
     res.status(404).json({ message: '盘点任务不存在' });
     return;
@@ -72,7 +79,7 @@ router.get('/:taskId/details', authenticate, (req: AuthRequest, res: Response): 
     params.push(status);
   }
 
-  const countSql = sql.replace('SELECT id.*, a.asset_no, a.name as asset_name, a.category, a.status as asset_status, a.location, a.net_value, u.name as checker_name', 'SELECT COUNT(*) as count');
+  const countSql = sql.replace(/[\s\S]*\bFROM\s/i, 'SELECT COUNT(*) as count FROM ');
   const total = (db.prepare(countSql).get(...params) as { count: number }).count;
 
   const offset = (Number(page) - 1) * Number(pageSize);

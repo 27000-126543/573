@@ -26,10 +26,12 @@ function MyReturns() {
     setLoading(true);
     try {
       const res = await returns.getMyReturns();
-      const sorted = [...res].sort(
+      const sorted = [...res.records].sort(
         (a, b) => dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf()
       );
       setData(sorted as ReturnRecordExt[]);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }

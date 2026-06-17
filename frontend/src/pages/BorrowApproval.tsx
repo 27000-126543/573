@@ -59,9 +59,9 @@ function BorrowApproval() {
   const fetchPendingCount = async () => {
     try {
       const res = await borrowRequests.getPendingCount();
-      setPendingCount(res.count);
-    } catch {
-      // error handled in interceptor
+      setPendingCount(res.count || 0);
+    } catch (error) {
+      setPendingCount(0);
     }
   };
 
@@ -70,16 +70,17 @@ function BorrowApproval() {
     try {
       const params: Record<string, string | number> = {
         page,
-        page_size: pageSize,
+        pageSize,
       };
       if (activeTab !== 'all') {
         params.status = activeTab;
       }
       const res = await borrowRequests.list(params);
-      setData(res.list);
-      setTotal(res.total);
-    } catch {
-      // error handled in interceptor
+      setData(res.requests || []);
+      setTotal(res.total || 0);
+    } catch (error) {
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -115,15 +116,15 @@ function BorrowApproval() {
       const values = await approveForm.validateFields();
       if (!currentRecord) return;
       setSubmitting(true);
-      await borrowRequests.approve(currentRecord.id, {
-        comment: values.approval_comment,
+      const res = await borrowRequests.approve(currentRecord.id, {
+        approval_comment: values.approval_comment,
       });
-      message.success('审批通过');
+      message.success(res.message || '审批通过');
       setApproveModalOpen(false);
       fetchPendingCount();
       fetchData();
-    } catch {
-      // validation or api error
+    } catch (err: any) {
+      if (err?.errorFields) return;
     } finally {
       setSubmitting(false);
     }
@@ -134,15 +135,15 @@ function BorrowApproval() {
       const values = await rejectForm.validateFields();
       if (!currentRecord) return;
       setSubmitting(true);
-      await borrowRequests.reject(currentRecord.id, {
-        comment: values.approval_comment,
+      const res = await borrowRequests.reject(currentRecord.id, {
+        approval_comment: values.approval_comment,
       });
-      message.success('已拒绝');
+      message.success(res.message || '已拒绝');
       setRejectModalOpen(false);
       fetchPendingCount();
       fetchData();
-    } catch {
-      // validation or api error
+    } catch (err: any) {
+      if (err?.errorFields) return;
     } finally {
       setSubmitting(false);
     }

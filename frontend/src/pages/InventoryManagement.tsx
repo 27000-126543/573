@@ -54,11 +54,14 @@ function InventoryManagement() {
     try {
       const params: Record<string, any> = {
         page,
-        page_size: pageSize,
+        pageSize,
       };
       const res = await inventory.listTasks(params);
-      setData(res.list as InventoryTaskExt[]);
-      setTotal(res.total);
+      setData((res.tasks as InventoryTaskExt[]) || []);
+      setTotal(res.total || 0);
+    } catch (err) {
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -72,21 +75,18 @@ function InventoryManagement() {
     try {
       const values = await genForm.validateFields();
       setSubmitting(true);
-      const quarterNum = Number(String(values.quarter).replace('Q', ''));
-      const taskName = `${values.year}年 Q${quarterNum} 盘点任务`;
-      await inventory.generateTask({
-        task_name: taskName,
-        quarter: quarterNum,
+      const res = await inventory.generateTask({
         year: values.year,
+        quarter: values.quarter,
         deadline: values.deadline ? values.deadline.format('YYYY-MM-DD') : '',
       });
-      message.success('盘点任务生成成功');
+      message.success(res.message || '盘点任务生成成功');
       setGenModalOpen(false);
       genForm.resetFields();
+      setPage(1);
       fetchData();
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.error('生成失败');
     } finally {
       setSubmitting(false);
     }
@@ -100,11 +100,11 @@ function InventoryManagement() {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await inventory.completeTask(record.id);
-          message.success('任务已标记完成');
+          const res = await inventory.completeTask(record.id);
+          message.success(res.message || '任务已标记完成');
           fetchData();
-        } catch {
-          message.error('操作失败');
+        } catch (err) {
+          // axios 拦截器已统一提示错误
         }
       },
     });
@@ -120,7 +120,6 @@ function InventoryManagement() {
       title: '季度',
       dataIndex: 'quarter',
       key: 'quarter',
-      render: (q: number) => `Q${q}`,
     },
     {
       title: '年份',

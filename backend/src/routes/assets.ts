@@ -56,7 +56,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
     params.push(likeKeyword, likeKeyword, likeKeyword);
   }
 
-  const countSql = sql.replace('SELECT a.*, u.name as current_user_name', 'SELECT COUNT(*) as count');
+  const countSql = sql.replace(/[\s\S]*\bFROM\s/i, 'SELECT COUNT(*) as count FROM ');
   const total = (db.prepare(countSql).get(...params) as { count: number }).count;
 
   const offset = (Number(page) - 1) * Number(pageSize);

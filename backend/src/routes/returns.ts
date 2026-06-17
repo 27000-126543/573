@@ -139,7 +139,7 @@ router.get('/repair-records', authenticate, (req: AuthRequest, res: Response): v
     params.push(status);
   }
 
-  const countSql = sql.replace('SELECT rr.*, a.asset_no, a.name as asset_name, a.category, u.name as returner_name', 'SELECT COUNT(*) as count');
+  const countSql = sql.replace(/[\s\S]*\bFROM\s/i, 'SELECT COUNT(*) as count FROM ');
   const total = (db.prepare(countSql).get(...params) as { count: number }).count;
 
   const offset = (Number(page) - 1) * Number(pageSize);

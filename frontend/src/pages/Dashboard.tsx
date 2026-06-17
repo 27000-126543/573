@@ -18,55 +18,68 @@ import {
   AuditOutlined,
   StockOutlined,
 } from '@ant-design/icons';
-import { inventory, borrowRequests, returns } from '../api';
+import { inventory } from '../api';
 import { isAdmin } from '../utils/auth';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
 
-interface StatisticsData {
-  total_assets: number;
-  available_count: number;
-  in_use_count: number;
-  repairing_count: number;
-  scrapped_count: number;
-  lost_count: number;
+interface CategoryStat {
+  category: string;
+  count: number;
   total_value: number;
-  category_stats: { category: string; count: number; net_value?: number }[];
+}
+
+interface StatisticsData {
+  assets: {
+    total: number;
+    in_use: number;
+    available: number;
+    repairing: number;
+  };
+  requests: {
+    pending: number;
+  };
+  repairs: {
+    pending: number;
+  };
+  inventory: {
+    in_progress: number;
+  };
+  value: {
+    total: number;
+    net: number;
+  };
+  categoryStats: CategoryStat[];
 }
 
 function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [statistics, setStatistics] = useState<StatisticsData | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [pendingRepairCount, setPendingRepairCount] = useState(0);
-  const [inProgressInventoryCount, setInProgressInventoryCount] = useState(0);
   const admin = isAdmin();
 
   const fetchStatistics = async () => {
     setLoading(true);
     try {
-      const data = await inventory.getStatistics();
-      const categoriesWithNetValue = data.category_stats.map((item) => ({
-        ...item,
-        net_value: data.total_value > 0 && data.total_assets > 0
-          ? Math.round((item.count / data.total_assets) * data.total_value * 100) / 100
-          : 0,
-      }));
-      setStatistics({ ...data, category_stats: categoriesWithNetValue });
+      const {
+        assets,
+        requests,
+        repairs,
+        inventory: invStats,
+        value,
+        categoryStats,
+      } = await inventory.getStatistics();
 
-      if (admin) {
-        const pendingRes = await borrowRequests.getPendingCount();
-        setPendingCount(pendingRes.count);
-
-        const repairRes = await returns.getRepairRecords({ status: 'pending' });
-        setPendingRepairCount(repairRes.total || 0);
-
-        const inventoryRes = await inventory.listTasks({ status: 'in_progress' });
-        setInProgressInventoryCount(inventoryRes.total || 0);
-      }
-    } catch {
-      // error handled by interceptor
+      setStatistics({
+        assets,
+        requests,
+        repairs,
+        inventory: invStats,
+        value,
+        categoryStats,
+      });
+    } catch (error) {
+      console.error('获取统计数据失败:', error);
     } finally {
       setLoading(false);
     }
@@ -89,13 +102,20 @@ function Dashboard() {
     },
     {
       title: '净值(元)',
-      dataIndex: 'net_value',
-      key: 'net_value',
+      dataIndex: 'total_value',
+      key: 'total_value',
       render: (value: number) => value?.toLocaleString('zh-CN', { minimumFractionDigits: 2 }),
     },
   ];
 
-  const netValue = statistics ? Math.round(statistics.total_value * 0.7 * 100) / 100 : 0;
+  const {
+    assets,
+    requests,
+    repairs,
+    inventory: invStats,
+    value,
+    categoryStats,
+  } = statistics || {};
 
   return (
     <Spin spinning={loading}>
@@ -110,7 +130,7 @@ function Dashboard() {
             >
               <Statistic
                 title="总资产"
-                value={statistics?.total_assets || 0}
+                value={assets?.total}
                 prefix={<AppstoreOutlined style={{ color: '#1677ff' }} />}
                 valueStyle={{ color: '#1677ff' }}
               />
@@ -123,7 +143,7 @@ function Dashboard() {
             >
               <Statistic
                 title="在用资产"
-                value={statistics?.in_use_count || 0}
+                value={assets?.in_use}
                 prefix={<CarryOutOutlined style={{ color: '#52c41a' }} />}
                 valueStyle={{ color: '#52c41a' }}
               />
@@ -136,7 +156,7 @@ function Dashboard() {
             >
               <Statistic
                 title="可用资产"
-                value={statistics?.available_count || 0}
+                value={assets?.available}
                 prefix={<CheckCircleOutlined style={{ color: '#13c2c2' }} />}
                 valueStyle={{ color: '#13c2c2' }}
               />
@@ -149,7 +169,7 @@ function Dashboard() {
             >
               <Statistic
                 title="维修中资产"
-                value={statistics?.repairing_count || 0}
+                value={assets?.repairing}
                 prefix={<ToolOutlined style={{ color: '#faad14' }} />}
                 valueStyle={{ color: '#faad14' }}
               />
@@ -165,7 +185,7 @@ function Dashboard() {
             >
               <Statistic
                 title="资产原值(元)"
-                value={statistics?.total_value || 0}
+                value={value?.total}
                 prefix={<DollarOutlined style={{ color: '#722ed1' }} />}
                 valueStyle={{ color: '#722ed1' }}
                 precision={2}
@@ -179,7 +199,7 @@ function Dashboard() {
             >
               <Statistic
                 title="资产净值(元)"
-                value={netValue}
+                value={value?.net}
                 prefix={<DollarOutlined style={{ color: '#eb2f96' }} />}
                 valueStyle={{ color: '#eb2f96' }}
                 precision={2}
@@ -197,7 +217,7 @@ function Dashboard() {
               >
                 <Statistic
                   title="待审批申请数"
-                  value={pendingCount}
+                  value={requests?.pending}
                   prefix={<AuditOutlined style={{ color: '#ff4d4f' }} />}
                   valueStyle={{ color: '#ff4d4f' }}
                 />
@@ -210,7 +230,7 @@ function Dashboard() {
               >
                 <Statistic
                   title="待维修数"
-                  value={pendingRepairCount}
+                  value={repairs?.pending}
                   prefix={<ToolOutlined style={{ color: '#fa541c' }} />}
                   valueStyle={{ color: '#fa541c' }}
                 />
@@ -223,7 +243,7 @@ function Dashboard() {
               >
                 <Statistic
                   title="进行中盘点任务"
-                  value={inProgressInventoryCount}
+                  value={invStats?.in_progress}
                   prefix={<StockOutlined style={{ color: '#2f54eb' }} />}
                   valueStyle={{ color: '#2f54eb' }}
                 />
@@ -245,7 +265,7 @@ function Dashboard() {
             <Table
               rowKey="category"
               columns={categoryColumns}
-              dataSource={statistics?.category_stats || []}
+              dataSource={categoryStats || []}
               pagination={false}
               size="middle"
             />

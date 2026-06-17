@@ -75,17 +75,17 @@ function AssetQuery() {
     try {
       const params: Record<string, any> = {
         page,
-        page_size: pageSize,
+        pageSize: pageSize,
       };
       if (searchParams.keyword) params.keyword = searchParams.keyword;
       if (searchParams.category) params.category = searchParams.category;
       if (searchParams.status) params.status = searchParams.status;
 
       const res = await assets.list(params);
-      setAssetList(res.list);
+      setAssetList(res.assets);
       setTotal(res.total);
-    } catch {
-      // error handled by interceptor
+    } catch (error) {
+      console.error('获取资产列表失败:', error);
     } finally {
       setLoading(false);
     }
@@ -93,10 +93,10 @@ function AssetQuery() {
 
   const fetchCategories = async () => {
     try {
-      const data = await assets.getCategories();
-      setCategories(data);
-    } catch {
-      // error handled by interceptor
+      const categoriesRes = await assets.getCategories();
+      setCategories(categoriesRes.categories);
+    } catch (error) {
+      console.error('获取资产类别失败:', error);
     }
   };
 
@@ -133,17 +133,17 @@ function AssetQuery() {
 
       setSubmitLoading(true);
 
-      await borrowRequests.create({
+      const res = await borrowRequests.create({
         asset_id: selectedAsset.id,
         purpose: values.purpose,
         expected_return_date: values.expected_return_date.format('YYYY-MM-DD'),
       });
 
-      message.success('领用申请提交成功，请等待审批');
+      message.success(res.message);
       setModalVisible(false);
       fetchAssetList();
-    } catch {
-      // validation error or api error
+    } catch (error) {
+      console.error('提交领用申请失败:', error);
     } finally {
       setSubmitLoading(false);
     }

@@ -11,11 +11,13 @@ router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
   let sql = `
     SELECT br.*, a.asset_no, a.name as asset_name, a.category,
            r.name as requester_name, r.department as requester_department,
-           ap.name as approver_name
+           ap.name as approver_name,
+           rr.return_status, rr.return_note, rr.created_at as returned_at
     FROM borrow_requests br
     LEFT JOIN assets a ON br.asset_id = a.id
     LEFT JOIN users r ON br.requester_id = r.id
     LEFT JOIN users ap ON br.approver_id = ap.id
+    LEFT JOIN return_records rr ON br.id = rr.borrow_request_id
     WHERE 1=1
   `;
   const params: any[] = [];
@@ -29,7 +31,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response): void => {
     params.push(status);
   }
 
-  const countSql = sql.replace('SELECT br.*, a.asset_no, a.name as asset_name, a.category, r.name as requester_name, r.department as requester_department, ap.name as approver_name', 'SELECT COUNT(*) as count');
+  const countSql = sql.replace(/[\s\S]*\bFROM\s/i, 'SELECT COUNT(*) as count FROM ');
   const total = (db.prepare(countSql).get(...params) as { count: number }).count;
 
   const offset = (Number(page) - 1) * Number(pageSize);

@@ -31,8 +31,8 @@ import {
   Link,
 } from 'react-router-dom';
 import type { MenuProps } from 'antd';
-import { auth } from '../services/auth';
-import type { User } from '../services/auth';
+import { getUser, clearAuth } from '../utils/auth';
+import type { User } from '../types';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -44,7 +44,7 @@ function MainLayout() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const currentUser = auth.getUser();
+    const currentUser = getUser();
     setUser(currentUser);
   }, []);
 
@@ -164,7 +164,7 @@ function MainLayout() {
 
   const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
     if (key === 'logout') {
-      auth.logout();
+      clearAuth();
       navigate('/login');
     }
   };

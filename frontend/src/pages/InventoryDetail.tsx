@@ -65,7 +65,6 @@ function InventoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const taskId = Number(id);
 
-  const [taskLoading, setTaskLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [task, setTask] = useState<InventoryTaskExt | null>(null);
   const [data, setData] = useState<InventoryDetailExt[]>([]);
@@ -78,41 +77,27 @@ function InventoryDetailPage() {
   const [checkForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchTaskInfo = async () => {
-    setTaskLoading(true);
-    try {
-      const res = await inventory.listTasks({ id: taskId });
-      if (res.list && res.list.length > 0) {
-        setTask(res.list[0] as InventoryTaskExt);
-      }
-    } finally {
-      setTaskLoading(false);
-    }
-  };
-
   const fetchData = async () => {
     setLoading(true);
     try {
       const params: Record<string, any> = {
         page,
-        page_size: pageSize,
+        pageSize,
       };
       if (status) {
         params.status = status;
       }
       const res = await inventory.getTaskDetails(taskId, params);
-      setData(res.list as InventoryDetailExt[]);
-      setTotal(res.total);
+      setTask((res.task as InventoryTaskExt) || null);
+      setData((res.details as InventoryDetailExt[]) || []);
+      setTotal(res.total || 0);
+    } catch (error) {
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (taskId) {
-      fetchTaskInfo();
-    }
-  }, [taskId]);
 
   useEffect(() => {
     if (taskId) {
@@ -134,17 +119,19 @@ function InventoryDetailPage() {
     try {
       const values = await checkForm.validateFields();
       setSubmitting(true);
-      await inventory.updateDetail(taskId, checkingRecord.id, {
+      const res = await inventory.updateDetail(taskId, checkingRecord.id, {
         status: values.status,
         check_note: values.check_note,
       });
-      message.success('核对成功');
+      if (res.taskCompleted) {
+        message.success('核对完成，盘点任务已自动标记为已完成');
+      } else {
+        message.success(res.message || '核对成功');
+      }
       setCheckModalOpen(false);
       fetchData();
-      fetchTaskInfo();
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.error('核对失败');
     } finally {
       setSubmitting(false);
     }
@@ -242,7 +229,7 @@ function InventoryDetailPage() {
         盘点详情
       </Title>
 
-      <Spin spinning={taskLoading} style={{ marginBottom: 16 }}>
+      <Spin spinning={loading} style={{ marginBottom: 16 }}>
         {task && (
           <Card style={{ marginBottom: 24 }}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>

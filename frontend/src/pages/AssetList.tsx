@@ -86,17 +86,17 @@ function AssetList() {
     try {
       const params: Record<string, any> = {
         page,
-        page_size: pageSize,
+        pageSize: pageSize,
       };
       if (searchParams.keyword) params.keyword = searchParams.keyword;
       if (searchParams.category) params.category = searchParams.category;
       if (searchParams.status) params.status = searchParams.status;
 
       const res = await assets.list(params);
-      setAssetList(res.list);
+      setAssetList(res.assets);
       setTotal(res.total);
-    } catch {
-      // error handled by interceptor
+    } catch (error) {
+      console.error('获取资产列表失败:', error);
     } finally {
       setLoading(false);
     }
@@ -104,10 +104,10 @@ function AssetList() {
 
   const fetchCategories = async () => {
     try {
-      const data = await assets.getCategories();
-      setCategories(data);
-    } catch {
-      // error handled by interceptor
+      const categoriesRes = await assets.getCategories();
+      setCategories(categoriesRes.categories);
+    } catch (error) {
+      console.error('获取资产类别失败:', error);
     }
   };
 
@@ -171,17 +171,17 @@ function AssetList() {
       };
 
       if (editingAsset) {
-        await assets.update(editingAsset.id, submitData);
-        message.success('更新成功');
+        const res = await assets.update(editingAsset.id, submitData);
+        message.success(res.message);
       } else {
-        await assets.create(submitData);
-        message.success('创建成功');
+        const res = await assets.create(submitData);
+        message.success(res.message);
       }
 
       setModalVisible(false);
       fetchAssetList();
-    } catch {
-      // validation error or api error
+    } catch (error) {
+      console.error('提交资产数据失败:', error);
     } finally {
       setSubmitLoading(false);
     }
@@ -196,11 +196,11 @@ function AssetList() {
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
-          await assets.remove(id);
-          message.success('删除成功');
+          const res = await assets.remove(id);
+          message.success(res.message);
           fetchAssetList();
-        } catch {
-          // error handled by interceptor
+        } catch (error) {
+          console.error('删除资产失败:', error);
         }
       },
     });

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Form, Input, Button, Card, Typography, message, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../services/auth';
+import { auth } from '../api';
+import { setAuth } from '../utils/auth';
 
 const { Title, Text } = Typography;
 
@@ -13,9 +14,9 @@ function Login() {
   const onFinish = async (values: { username: string; password: string }) => {
     try {
       setLoading(true);
-      const { token, user } = await auth.login(values.username, values.password);
-      auth.saveToken(token, user);
-      message.success('登录成功');
+      const res = await auth.login(values);
+      setAuth(res.token, res.user);
+      message.success(res.message || '登录成功');
       navigate('/dashboard');
     } catch (error) {
       message.error((error as Error).message);

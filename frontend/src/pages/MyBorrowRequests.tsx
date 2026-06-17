@@ -58,17 +58,19 @@ function MyBorrowRequests() {
     setLoading(true);
     try {
       const params: Record<string, string | number> = {
+        myRequests: 'true',
         page,
-        page_size: pageSize,
+        pageSize,
       };
       if (activeTab !== 'all') {
         params.status = activeTab;
       }
       const res = await borrowRequests.list(params);
-      setData(res.list);
-      setTotal(res.total);
-    } catch {
-      // error handled in interceptor
+      setData(res.requests || []);
+      setTotal(res.total || 0);
+    } catch (error) {
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -94,16 +96,17 @@ function MyBorrowRequests() {
       const values = await returnForm.validateFields();
       if (!currentRecord) return;
       setReturnLoading(true);
-      await returns.returnAsset({
+      const res = await returns.returnAsset({
         borrow_request_id: currentRecord.id,
         return_status: values.return_status,
         return_note: values.return_note,
       });
-      message.success('归还提交成功');
+      message.success(res.message);
       setReturnModalOpen(false);
-      fetchData();
-    } catch {
-      // validation or api error
+      setActiveTab('completed');
+      setPage(1);
+    } catch (err: any) {
+      if (err?.errorFields) return;
     } finally {
       setReturnLoading(false);
     }
@@ -167,6 +170,30 @@ function MyBorrowRequests() {
       title: '审批意见',
       dataIndex: 'approval_comment',
       key: 'approval_comment',
+      width: 180,
+      ellipsis: true,
+      render: (val: string | null) => val || '-',
+    },
+    {
+      title: '归还状态',
+      dataIndex: 'return_status',
+      key: 'return_status',
+      width: 100,
+      render: (val: string | null, record: BorrowRequest) => {
+        if (record.status !== 'completed') return '-';
+        const map: Record<string, { color: string; text: string }> = {
+          good: { color: 'green', text: '完好' },
+          damaged: { color: 'orange', text: '损坏' },
+          lost: { color: 'red', text: '丢失' },
+        };
+        const info = map[val || ''];
+        return info ? <Tag color={info.color}>{info.text}</Tag> : '-';
+      },
+    },
+    {
+      title: '归还备注',
+      dataIndex: 'return_note',
+      key: 'return_note',
       width: 180,
       ellipsis: true,
       render: (val: string | null) => val || '-',

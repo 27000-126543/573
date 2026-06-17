@@ -29,7 +29,7 @@ interface RepairRecordExt extends RepairRecord {
 
 const repairStatusMap: Record<string, { color: string; text: string }> = {
   pending: { color: 'gold', text: '待维修' },
-  repairing: { color: 'processing', text: '维修中' },
+  repairing: { color: 'blue', text: '维修中' },
   completed: { color: 'green', text: '已完成' },
   cannot_repair: { color: 'red', text: '无法修复' },
 };
@@ -59,14 +59,17 @@ function RepairManagement() {
     try {
       const params: Record<string, any> = {
         page,
-        page_size: pageSize,
+        pageSize,
       };
       if (status) {
         params.status = status;
       }
       const res = await returns.getRepairRecords(params);
-      setData(res.list as RepairRecordExt[]);
-      setTotal(res.total);
+      setData(res.records as RepairRecordExt[] || []);
+      setTotal(res.total || 0);
+    } catch (err) {
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -91,13 +94,12 @@ function RepairManagement() {
     try {
       const values = await editForm.validateFields();
       setSubmitting(true);
-      await returns.updateRepair(editingRecord.id, values);
-      message.success('更新成功');
+      const res = await returns.updateRepair(editingRecord.id, values);
+      message.success(res.message);
       setEditModalOpen(false);
       fetchData();
     } catch (err: any) {
       if (err?.errorFields) return;
-      message.error('更新失败');
     } finally {
       setSubmitting(false);
     }
